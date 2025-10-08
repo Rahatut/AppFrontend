@@ -51,6 +51,10 @@ const Layout = () => {
       />
       {/* hide from tabs */}
       <Tabs.Screen
+        name="(createRide)/create"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="(joinRide)/availableRides"
         options={{ href: null }}
       />

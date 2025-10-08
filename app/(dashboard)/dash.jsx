@@ -15,7 +15,7 @@ const Dash = () => {
     <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.title}>Start your journey!</Text>
 
-      <TouchableOpacity style={styles.button}>
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/create')}>
         <Text style={styles.buttonTitle}>Create a Ride</Text>
         <Text style={styles.buttonText}>Choose your destination and look for others to share the journey.</Text>
       </TouchableOpacity>
