@@ -1,9 +1,12 @@
 import React, { useRef, useState } from 'react'
 import { View, StyleSheet, TouchableOpacity } from 'react-native'
-import MapView, { Marker } from 'react-native-maps' // REMOVE PROVIDER_GOOGLE
-import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete'
+import MapView, { Marker } from 'react-native-maps'
+import { StyledScrollView as ScrollView } from '../../components/StyledScrollView'
+import { useRouter } from 'expo-router'
+import { StyledSearchBar as TextInput } from '../../components/StyledSearchBar'
 import { StyledText as Text } from '../../components/StyledText'
 import { StyledCardButton as CardButton } from '../../components/StyledCardButton'
+import rides from '../../data/rideData.json'
 
 const INITIAL_REGION = {
   latitude: 23.8103,
@@ -15,6 +18,41 @@ const INITIAL_REGION = {
 export default function CreateRide() {
   const mapRef = useRef(null);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [query, setQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const router = useRouter();
+
+  const suggestions = [
+    {
+      name: 'Motijheel AG Colony',
+      address: 'Motijheel, Dhaka',
+      latitude: 23.7361,
+      longitude: 90.4177,
+    },
+    {
+      name: 'Gulshan 2 Circle',
+      address: 'Gulshan, Dhaka',
+      latitude: 23.7925,
+      longitude: 90.4078,
+    },
+    {
+      name: 'Dhanmondi 27',
+      address: 'Dhanmondi, Dhaka',
+      latitude: 23.7465,
+      longitude: 90.3742,
+    },
+    {
+      name: 'Uttara Sector 7 Park',
+      address: 'Uttara, Dhaka',
+      latitude: 23.8697,
+      longitude: 90.3943,
+    },
+  ];
+
+  const filtered = suggestions.filter(s =>
+    (s.name + ' ' + s.address).toLowerCase().includes(query.toLowerCase())
+  );
 
   const onPlaceSelected = (data, details) => {
     if (!details?.geometry?.location) return;
@@ -32,27 +70,50 @@ export default function CreateRide() {
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView>
       <Text style={styles.title}>Search your destination</Text>
 
-      
-<GooglePlacesAutocomplete
-  placeholder="Where would you like to go?"
-  onPress={onPlaceSelected}
-  fetchDetails
-  query={{
-    key: 'AIzaSyDGHhGjKrKCnYujl1YkRilpbUk2P1IMzCM', 
-    language: 'en',
-  }}
-  onFail={error => alert('Google Places error: ' + error)}
-  styles={{
-    textInput: styles.searchInput,
-    listView: styles.autocompleteList,
-  }}
-/>
+      {!isSearching && (
+        <TouchableOpacity
+          style={styles.searchBtn}
+          onPress={() => { setIsSearching(true); setShowSuggestions(false); setSelectedPlace(null); setQuery(''); }}
+        >
+          <Text style={styles.searchBtnText}>Search</Text>
+        </TouchableOpacity>
+      )}
 
+      {isSearching && (
+        <TextInput
+          placeholder="Enter destination..."
+          value={query}
+          onChangeText={(text) => { setQuery(text); setShowSuggestions(true); }}
+        />
+      )}
 
-      // ...existing code...
+      {isSearching && query.length > 0 && showSuggestions && (
+        <View style={styles.suggestionList}>
+          {filtered.map((item, idx) => (
+            <TouchableOpacity
+              key={idx}
+              style={styles.suggestionItem}
+              onPress={() => {
+                setSelectedPlace(item);
+                setQuery(item.name);
+                setShowSuggestions(false);
+              }}
+            >
+              <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
+              <Text style={{ color: '#666' }}>{item.address}</Text>
+            </TouchableOpacity>
+          ))}
+          {filtered.length === 0 && (
+            <View style={styles.suggestionItem}>
+              <Text>No matches</Text>
+            </View>
+          )}
+        </View>
+      )}
+
       <View style={styles.mapWrapper}>
         <MapView
           ref={mapRef}
@@ -61,47 +122,47 @@ export default function CreateRide() {
         >
           {selectedPlace && (
             <Marker
-              coordinate={{
-                latitude: selectedPlace.latitude,
-                longitude: selectedPlace.longitude,
-              }}
+              coordinate={{ latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }}
               title={selectedPlace.name}
               description={selectedPlace.address}
-            />
-          )}
+            />)
+          }
         </MapView>
       </View>
-// ...existing code...
 
-      {selectedPlace && (
+      {!isSearching && (
+        <>
+          <Text style={styles.subtitle}>Your Previous Rides</Text>
+          {rides.map((ride, index) => (
+            <CardButton key={index}>
+              <View style={{flexDirection: 'row'}}>
+                <View style={{width: '70%'}}>
+                  <Text style={{fontWeight: 'bold'}}>{ride.destination}</Text>
+                  <Text style={{color: '#666'}}>{ride.date.day} • {ride.date.time}</Text>
+                  <Text style={{color: '#666'}}>{ride.transport} • BDT {ride.fare}</Text>
+                </View>
+                <View style={{width: '30%', alignItems: 'flex-end'}}>
+                  <Text>👤</Text>
+                  <Text style={{fontWeight: 'bold'}}>{ride.creator.name}</Text>
+                  <Text style={{color: '#888'}}>{ride.creator.handle}</Text>
+                </View>
+              </View>
+            </CardButton>
+          ))}
+        </>
+      )}
+
+      {isSearching && selectedPlace && (
         <View style={{ width: '100%' }}>
-          <Text style={styles.subtitle}>Your preferred transport</Text>
-
-          <CardButton>
-            <View style={styles.transportRow}>
-              <Text style={styles.transportIcon}>🚗</Text>
-              <Text style={styles.transportText}>Car</Text>
-            </View>
-          </CardButton>
-          <CardButton>
-            <View style={styles.transportRow}>
-              <Text style={styles.transportIcon}>🛺</Text>
-              <Text style={styles.transportText}>CNG</Text>
-            </View>
-          </CardButton>
-          <CardButton>
-            <View style={styles.transportRow}>
-              <Text style={styles.transportIcon}>🚌</Text>
-              <Text style={styles.transportText}>Bus</Text>
-            </View>
-          </CardButton>
-
-          <TouchableOpacity style={styles.primaryCta}>
-            <Text style={styles.primaryCtaText}>Create Ride</Text>
+          <TouchableOpacity
+            style={styles.primaryCta}
+            onPress={() => router.push({ pathname: '/chooseTransport', params: { name: selectedPlace.name, address: selectedPlace.address } })}
+          >
+            <Text style={styles.primaryCtaText}>Next</Text>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </ScrollView>
   )
 }
 
@@ -140,6 +201,22 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#fff',
     marginBottom: 10,
+  },
+  suggestionList: {
+    width: '100%',
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#000000',
+    marginTop: -10,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   mapWrapper: {
     width: '100%',

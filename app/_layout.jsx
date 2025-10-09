@@ -55,6 +55,22 @@ const Layout = () => {
         options={{ href: null }}
       />
       <Tabs.Screen
+        name="(createRide)/chooseTransport"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="(createRide)/transportOptions"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="(createRide)/ridePreferences"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="(createRide)/rideCreated"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="(joinRide)/availableRides"
         options={{ href: null }}
       />
