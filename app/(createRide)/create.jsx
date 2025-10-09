@@ -201,14 +201,43 @@ export default function CreateRide() {
           onRegionChangeComplete={(region) => {
             setMapCenter({ lat: region.latitude, lng: region.longitude });
           }}
+          onPress={async (e) => {
+          const { latitude, longitude } = e.nativeEvent.coordinate;
+          try {
+            const resp = await fetch(
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${placesApiKey}`
+            );
+            const json = await resp.json();
+            const result = json.results?.[0];
+            setSelectedPlace({
+              name: result?.formatted_address || 'Pinned location', // Use formatted_address for name
+              address: result?.formatted_address || 'Unknown address',
+              latitude,
+              longitude,
+            });
+            mapRef.current?.animateToRegion({
+              latitude,
+              longitude,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }, 500);
+          } catch (err) {
+            setSelectedPlace({
+              name: 'Pinned location',
+              address: 'Unknown address',
+              latitude,
+              longitude,
+            });
+          }
+        }}
         >
           {selectedPlace && (
             <Marker
               coordinate={{ latitude: selectedPlace.latitude, longitude: selectedPlace.longitude }}
               title={selectedPlace.name}
               description={selectedPlace.address}
-            />)
-          }
+            />
+          )}
         </MapView>
       </View>
 

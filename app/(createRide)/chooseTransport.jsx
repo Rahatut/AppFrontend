@@ -53,27 +53,30 @@ export default function ChooseTransport() {
       </CardButton>
 
       {selectedTransport && (
-        <>
-          <Text style={styles.subtitle}>Chosen transport</Text>
-          <CardButton>
-            <View style={{flexDirection: 'row', alignItems: 'center'}}>
-              <Text style={[styles.transportIcon, {marginRight: 6}]}>✅</Text>
-              <Text style={{fontWeight: 'bold'}}>{selectedTransport}</Text>
-            </View>
-          </CardButton>
+  <>
+        <Text style={styles.subtitle}>Chosen transport</Text>
+        <CardButton>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <Text style={{fontWeight: 'bold'}}>{selectedTransport}</Text>
+          </View>
+        </CardButton>
 
+        <View style={styles.buttonRow}>
           <TouchableOpacity
-            style={styles.primaryCta}
+            style={[styles.primaryCta, { flex: 1, marginRight: 8 }]}
+            onPress={() => router.back()}
+          >
+            <Text style={styles.primaryCtaText}>Back</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.primaryCta, { flex: 1, marginLeft: 8 }]}
             onPress={() => router.push({ pathname: '/transportOptions', params: { address, transport: selectedTransport } })}
           >
             <Text style={styles.primaryCtaText}>Next</Text>
           </TouchableOpacity>
-        </>
-      )}
-
-      <TouchableOpacity style={styles.primaryCta} onPress={() => router.back()}>
-        <Text style={styles.primaryCtaText}>Back</Text>
-      </TouchableOpacity>
+        </View>
+      </>
+    )}
     </ScrollView>
   )
 }
@@ -84,6 +87,10 @@ const styles = StyleSheet.create({
     padding: 25,
     paddingTop: 10,
     backgroundColor: '#f7f7f7',
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    marginTop: 10,
   },
   title: {
     fontWeight: 'bold',
