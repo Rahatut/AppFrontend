@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, TouchableOpacity } from 'react-native'
 import MapView, { Marker } from 'react-native-maps'
 import { StyledScrollView as ScrollView } from '../../components/StyledScrollView'
@@ -22,6 +22,13 @@ export default function CreateRide() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
+  const placesApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  const [apiSuggestions, setApiSuggestions] = useState([]);
+  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: INITIAL_REGION.latitude, lng: INITIAL_REGION.longitude });
+  const sessionTokenRef = useRef(null);
 
   const suggestions = [
     {
@@ -69,6 +76,49 @@ export default function CreateRide() {
     }
   };
 
+  useEffect(() => {
+    let active = true;
+    if (!isSearching || !placesApiKey || query.trim().length < 2) {
+      setApiSuggestions([]);
+      return () => { active = false; };
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsLoadingSuggestions(true);
+        setSuggestionsError(null);
+        if (!sessionTokenRef.current) {
+          sessionTokenRef.current = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        }
+        const params = new URLSearchParams({
+          input: query,
+          types: 'address',
+          language: 'en',
+          location: `${mapCenter.lat},${mapCenter.lng}`,
+          radius: '20000',
+          components: 'country:bd',
+          key: placesApiKey,
+          sessiontoken: sessionTokenRef.current,
+        });
+        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?${params.toString()}`;
+        const resp = await fetch(url, { signal: controller.signal });
+        const json = await resp.json();
+        if (!active) return;
+        setApiSuggestions(Array.isArray(json?.predictions) ? json.predictions : []);
+      } catch (e) {
+        if (!active) return;
+        setSuggestionsError('Failed to load suggestions');
+      } finally {
+        if (active) setIsLoadingSuggestions(false);
+      }
+    }, 350);
+    return () => {
+      active = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [query, isSearching, placesApiKey, mapCenter.lat, mapCenter.lng]);
+
   return (
     <ScrollView>
       <Text style={styles.title}>Search your destination</Text>
@@ -90,26 +140,55 @@ export default function CreateRide() {
         />
       )}
 
-      {isSearching && query.length > 0 && showSuggestions && (
+      {isSearching && showSuggestions && (
         <View style={styles.suggestionList}>
-          {filtered.map((item, idx) => (
+          {!placesApiKey && (
+            <View style={styles.suggestionItem}><Text>Missing EXPO_PUBLIC_GOOGLE_MAPS_API_KEY</Text></View>
+          )}
+          {placesApiKey && isLoadingSuggestions && (
+            <View style={styles.suggestionItem}><Text>Loading...</Text></View>
+          )}
+          {placesApiKey && !isLoadingSuggestions && suggestionsError && (
+            <View style={styles.suggestionItem}><Text>{String(suggestionsError)}</Text></View>
+          )}
+          {placesApiKey && !isLoadingSuggestions && !suggestionsError && apiSuggestions.slice(0, 5).map((item, idx) => (
             <TouchableOpacity
-              key={idx}
+              key={item.place_id || idx}
               style={styles.suggestionItem}
-              onPress={() => {
-                setSelectedPlace(item);
-                setQuery(item.name);
-                setShowSuggestions(false);
+              onPress={async () => {
+                try {
+                  setShowSuggestions(false);
+                  setQuery(item.structured_formatting?.main_text || item.description || '');
+                  if (!placesApiKey || !item.place_id) return;
+                  const detailsParams = new URLSearchParams({
+                    place_id: item.place_id,
+                    fields: 'geometry,name,formatted_address',
+                    key: placesApiKey,
+                    sessiontoken: sessionTokenRef.current || '',
+                  });
+                  const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?${detailsParams.toString()}`;
+                  const resp = await fetch(detailsUrl);
+                  const json = await resp.json();
+                  const details = json?.result;
+                  if (details?.geometry?.location) {
+                    onPlaceSelected({ description: item.description }, details);
+                    sessionTokenRef.current = null;
+                  }
+                } catch (e) {
+                  console.warn('Place details fetch error:', e);
+                }
               }}
             >
-              <Text style={{ fontWeight: 'bold' }}>{item.name}</Text>
-              <Text style={{ color: '#666' }}>{item.address}</Text>
+              <Text style={{ fontWeight: 'bold' }}>
+                {item.structured_formatting?.main_text || item.description}
+              </Text>
+              {!!item.structured_formatting?.secondary_text && (
+                <Text style={{ color: '#666' }}>{item.structured_formatting.secondary_text}</Text>
+              )}
             </TouchableOpacity>
           ))}
-          {filtered.length === 0 && (
-            <View style={styles.suggestionItem}>
-              <Text>No matches</Text>
-            </View>
+          {placesApiKey && !isLoadingSuggestions && !suggestionsError && apiSuggestions.length === 0 && (
+            <View style={styles.suggestionItem}><Text>No matches</Text></View>
           )}
         </View>
       )}
@@ -119,6 +198,9 @@ export default function CreateRide() {
           ref={mapRef}
           style={styles.map}
           initialRegion={INITIAL_REGION}
+          onRegionChangeComplete={(region) => {
+            setMapCenter({ lat: region.latitude, lng: region.longitude });
+          }}
         >
           {selectedPlace && (
             <Marker
